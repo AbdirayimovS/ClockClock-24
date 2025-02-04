@@ -92,5 +92,5 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     widget = MainWindow()
     widget.show()
-    widget.resize(250, 100)
+    widget.resize(550, 300)
     sys.exit(app.exec_())

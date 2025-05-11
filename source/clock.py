@@ -3,52 +3,65 @@ Clock
 =====
 '''
 import math
+import datetime
 
-from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QWidget, QGraphicsItem, QGraphicsScene
+from PyQt5.QtCore import Qt, QTimer, QRectF, QPointF, QSizeF
 from PyQt5.QtGui import QColor, QPainter, QPen, QBrush, QGradient, QLinearGradient, QRadialGradient, QConicalGradient
 
+####### PARAMS ########
+PEN_WIDTH = 3
 
-class Clock(QWidget):
-    '''
-    Round. Has background and foreground colors. Has two strikes.
+SECOND_HAND_PEN = QPen(
+    Qt.red,
+    PEN_WIDTH,
+    Qt.SolidLine,
+    Qt.RoundCap,
+    Qt.RoundJoin
+    )
 
-    Clock shall not have own qthreads. they creates new complexity!
-    
+MINUTE_HAND_PEN = QPen(
+    Qt.white,
+    PEN_WIDTH,
+    Qt.SolidLine,
+    Qt.RoundCap,
+    Qt.RoundJoin
+    )
 
-    https://www.geeksforgeeks.org/create-analog-clock-using-pyqt5-in-python/
-    '''
+HOUR_HAND_PEN = QPen(
+    Qt.white,
+    PEN_WIDTH,
+    Qt.SolidLine,
+    Qt.RoundCap,
+    Qt.RoundJoin
+    )
 
-    def __init__(self, hour=10, minute=30, parent=None):
-        super().__init__(parent)
-        self.__minute = minute
-        self.__hour = hour
-        self._previous_minute = minute
-        self._previous_hour = hour
-        self.percent = 0
-        self.HOUR_HAND_PEN = QPen(Qt.white,
-                                    10,
-                                    Qt.SolidLine,
-                                    Qt.RoundCap,
-                                    Qt.RoundJoin
-                                    )
-        self.MINUTE_HAND_PEN = QPen(Qt.white,
-                                    10,
-                                    Qt.SolidLine,
-                                    Qt.RoundCap,
-                                    Qt.RoundJoin
-                                    )
-        self.SECOND_HAND_PEN = QPen(Qt.red,
-                                    5,
-                                    Qt.SolidLine,
-                                    Qt.RoundCap,
-                                    Qt.RoundJoin
-                                    )
-        self.delta_second = 0
-        self.second_degree = self.delta_second * 6.
-        self.minute_degree = 0.
-        self.hour_degree = 0. # range [0, 12]
-        self.rec = min(self.width(), self.height())
+
+class GraphicsClock(QGraphicsItem):
+    def __init__(self, hour:int, minute:int, second=0, mode:int=1, ax=0, ay=0, size=100):
+        '''
+        Perform as clock!
+
+        Args:
+        -----
+            - mode (int): 1 --> classical analog clock
+                          2 --> display the time of hour and minute
+        '''
+        super().__init__()
+        assert mode in [1, 2]
+        self.mode = mode
+        self.HOUR_HAND_PEN = HOUR_HAND_PEN
+        self.MINUTE_HAND_PEN = MINUTE_HAND_PEN
+        
+        self.second_degree = second * 6  # 360 / 60
+        self.minute_degree = minute * 6 + second * 0.1  # 6° per minute + smooth
+        self.hour_degree = (hour % 12) * 30 + minute * 0.5  # 30° per hour + smooth
+        
+        self.second_degree = 0
+        self.minute_degree = 0
+        self.hour_degree = 0
+
+        self.rec = size
         self.center_x = self.rec // 2
         self.center_y =  self.rec // 2
         self.radius = self.rec - self.center_x
@@ -56,76 +69,21 @@ class Clock(QWidget):
         self.hours_line_len = self.radius * 0.6
         self.minute_line_len = self.radius * 0.9
         self.second_line_len = self.radius * 0.95
+        self.ax = ax
+        self.ay = ay
+        self.setPos(QPointF(ax, ay))
 
-        timer = QTimer(self)
-        timer.timeout.connect(self.updateHands)
-        timer.start(1000)
-    
-    def updateHands(self):
-        # the hour hand is moved only if the minute hand is moved!
-        # It means minute hand shall move in order to trigger the hour hand to move 
-        self.second_degree += 12 #6  # increase of this number means the speed representation.
-        # if current time too far, then the second degree shall be increased, and later it shall be decreased to normal in the end of the reach!
-        self.minute_degree += self.second_degree / 60 / 60
-        self.hour_degree += self.minute_degree / 30 / 60 / 60
+    # def boundingRect(self):
+    # ISSUE HERE: Does not work well!
+    # #     # print(self.ax - PEN_WIDTH, self.ay - PEN_WIDTH, self.rec + PEN_WIDTH, self.rec + PEN_WIDTH)
+    # #     # return QRectF(self.ax - PEN_WIDTH, self.ay - PEN_WIDTH, self.rec + PEN_WIDTH, self.rec + PEN_WIDTH)
+    #     return QRectF(self.ax, self.ay, 1000, self.rec+self.ay)
 
-        if int(self.second_degree) == 360:
-            self.second_degree = 0
-
-        if int(self.minute_degree) == 360:
-            self.minute_degree = 0
-        
-        if int(self.hour_degree) == 360:
-            self.hour_degree = 0
-
-        # shall it be recursive and call itself to continuesly draw
-        self.update()
-
-    @property
-    def hour(self):
-        return self.__hour
-
-    @hour.setter
-    def hour(self, value):
-        self._previous_hour = self.__hour
-        self.__hour = value
-
-    @property
-    def minute(self):
-        return self.__minute
-
-    @minute.setter
-    def minute(self, value):
-        self._previous_minute = self.__minute
-        self.__minute = value
-        self.percent = 0
-
-    def paintEvent(self, event):
-        '''
-        It is auto called when update() is triggered!
-        This is expensive method to run. Because it is run many times.
-
-        TASKS:
-            - Draw the circle
-            - Draw hour hand (current)
-            - Draw minute hand (current)
-            - Draw second hand (current)
-        
-            Drawing the circle depends on the size of widget.
-
-            Hour hand degree depens on minute hand degree and it depens on second degree value.
-            Each time when second rotated it forces the minutes to add some value like in a chain rule.
-            Therefore, each minute rotation adds some influence to hour to be updated similar to chain rule.
-
-        '''
-
-        painter = QPainter(self)
+    def paint(self, painter, option, widget = ...):
         painter.setRenderHint(QPainter.Antialiasing)
-
         #<<<<<<<Drawing a circle!>>>>>>>>
         # Gradient: https://www.bogotobogo.com/Qt/Qt5_QLinear_QRadial_QConical_QGradient.php
         brush = QBrush(QColor(0, 0, 255))  # create a gradient brush
-
         # linear gradient
         # gradient = QLinearGradient(0, 0, 400, 0)
         # gradient.setColorAt(0.0, QColor(0, 0, 255))  # blue at the top 
@@ -135,7 +93,7 @@ class Clock(QWidget):
         gradient = QRadialGradient(self.center_x, self.center_y, self.center_x) 
         gradient.setColorAt(0.0, QColor(0, 30, 255))  # blue at the top 
         gradient.setColorAt(1.0, QColor(60, 60, 180))  # dark blue at the 
-  ##################################
+        ##################################
 
         #<<<<<<<<<QConuqualGradient>>>>>>>
         # gradient = QConicalGradient(200, 50, 250)
@@ -149,13 +107,8 @@ class Clock(QWidget):
         painter.drawEllipse(0, 0, self.rec, self.rec)
 
         ##################################
-
-
-
         #######<DRAWING>#####
         # clean up due to degree values are not cyclic
-        
-
         # why we multiple to 30? 360 / 30  = 12. In order to easily classify into twelve points?
         # Is it necessary to move to cos and sin?
         # delta_minute depens on the seconds values
@@ -176,11 +129,11 @@ class Clock(QWidget):
         hours_x = int(self.hours_line_len * math.sin(radian_hour) + self.center_x)
         hours_y = int(-1 * self.hours_line_len * math.cos(radian_hour) + self.center_y)
 
-        painter.setPen(self.SECOND_HAND_PEN)
-        painter.drawLine(
-            self.center_x, self.center_y,
-            second_x, second_y
-            )
+        # painter.setPen(self.SECOND_HAND_PEN)
+        # painter.drawLine(
+        #     self.center_x, self.center_y,
+        #     second_x, second_y
+        #     )
         painter.setPen(self.MINUTE_HAND_PEN)
         painter.drawLine(
             self.center_x, self.center_y,
@@ -191,14 +144,54 @@ class Clock(QWidget):
             self.center_x, self.center_y,
             hours_x, hours_y
         )
+    
+    def advance(self, hour=None, minute=None):
+        # update the drawings
+        # update the hands of the clock
+        #------------------------------
+        if self.mode == 1: # classic clock
+            #----------------------------
+            now = datetime.datetime.now()
+            self.second_degree = now.second * 6  # 360 / 60
+            self.minute_degree = now.minute * 6 + now.second * 0.1  # 6° per minute + smooth
+            self.hour_degree = (now.hour % 12) * 30 + now.minute * 0.5  # 30° per hour + smooth
+            #------------------------------
+        elif self.mode == 2:
+            #------------------------------
+            assert minute != None
+            assert hour != None
 
-        super().paintEvent(event)
+            self.second_degree = 0  # 360 / 60
+            self.minute_degree = minute * 6  #+ second * 0.1  # 6° per minute + smooth
+            self.hour_degree = (hour % 12) * 30  #+ minute * 0.5  # 30° per hour + smooth
+            #------------------------------
+        self.update()
+
+
 
 if __name__ == "__main__":
     import sys
-    from PyQt5.QtWidgets import QApplication
+    from PyQt5.QtWidgets import QApplication, QGraphicsScene, QGraphicsView
 
     app = QApplication(sys.argv)
-    clock = Clock()
-    clock.show()
+    #########################################
+    clock_item = GraphicsClock(1, 1, 0, 1)
+    scene = QGraphicsScene()
+    scene.setSceneRect(0, 0, 100, 100)
+    scene.addItem(clock_item)
+    view = QGraphicsView(scene)
+    view.setViewportUpdateMode(QGraphicsView.FullViewportUpdate)
+    view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    view.setFrameShape(QGraphicsView.NoFrame)
+    view.setContentsMargins(0, 0, 0, 0)
+    view.setAttribute(Qt.WA_TranslucentBackground)
+    # view.setFixedSize(100, 100)
+    timer = QTimer()
+    timer.timeout.connect(clock_item.advance)
+    timer.start(32)
+    view.show()
+    #########################################
+   
+
     sys.exit(app.exec_())

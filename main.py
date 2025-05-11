@@ -5,15 +5,71 @@
 
 import os # to overcome relative path issues
 import sys
+import datetime
+from typing import List
 
-from PyQt5.QtWidgets import QWidget, QApplication, QHBoxLayout
-from PyQt5.QtCore import Qt, QTimer, QTime
 
-from source.digit import Digit
+from PyQt5.QtWidgets import QWidget, QApplication, QHBoxLayout, QGraphicsView, QGraphicsScene
+from PyQt5.QtCore import Qt, QTimer, QTime, QRectF
+from source.clock import GraphicsClock
+from source.utils import DIGIT_MAPPING_DICT
 
 basedir = os.path.dirname(__file__)
 
 
+class FourDigitScene(QGraphicsScene):
+    def __init__(self, rect:QRectF, mode=2, clock_size_px=50, clock_boundary_offset=2):
+        super().__init__()
+        self.setSceneRect(rect)
+        clock_x_boundary = clock_size_px + clock_boundary_offset
+        clock_y_boundary = clock_size_px + clock_boundary_offset
+
+        ###### H1 DIGIT ########
+        def __make_digit(digit_face_num:int, global_ax, global_ay) -> List:
+            clocks = []
+            val = DIGIT_MAPPING_DICT[digit_face_num]
+            for idx, (hour, minute) in enumerate(val):
+                # 0,1,2,3,4,5,6
+                ax1 = global_ax + idx % 2 * clock_x_boundary
+                ay = global_ay + idx // 2 * clock_y_boundary 
+                clock_item = GraphicsClock(hour, minute, mode=mode, ax=ax1, ay=ay, size=clock_size_px)
+                self.addItem(clock_item)
+                clocks.append(clock_item)
+            return clocks
+        ##########################
+        self.H1_clocks = __make_digit(0, 0, 0)
+        self.H2_clocks = __make_digit(1, clock_x_boundary*2, 0)
+        self.M1_clocks = __make_digit(1, clock_x_boundary*4, 0)
+        self.M2_clocks = __make_digit(1, clock_x_boundary*6, 0)
+
+        self.clocks = [
+            self.H1_clocks, 
+            self.H2_clocks, self.M1_clocks, self.M2_clocks,
+            ]
+        
+        # helpers
+        # text_item = self.addText("0, 0")
+        # text_item.setPos(0, 0)
+
+        # text_item = self.addText("400, 400")
+        # text_item.setPos(400, 400)
+        
+    def advance(self):
+        now = datetime.datetime.now()
+        # debug for now MM:SS, not HH:MM
+        # h1_face_digit = int(str(now.hour)[0]) if len(str(now.hour)) > 1 else 0
+        # h2_face_digit = int(str(now.hour)[-1])
+        h1_face_digit = int(str(now.minute)[0]) if len(str(now.minute)) > 1 else 0
+        h2_face_digit = int(str(now.minute)[-1])
+        m1_face_digit = int(str(now.second)[0]) if len(str(now.second)) > 1 else 0
+        m2_face_digit = int(str(now.second)[-1])
+
+        for clocks, face_digit in zip(self.clocks, [h1_face_digit, h2_face_digit, m1_face_digit, m2_face_digit]):
+            for clock, (hour, minute) in zip(clocks, DIGIT_MAPPING_DICT[face_digit]):
+                clock.advance(hour, minute)
+
+
+ 
 class MainWindow(QWidget):
     '''
     Main Window
@@ -21,42 +77,38 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('CLOCK')
-
-        timer = QTimer(self)
-        timer.timeout.connect(self.update)
-        timer.start(1000)
-
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         self.setMouseTracking(True)
+        self.layout = QHBoxLayout()
+        CLOCK_SIZE_PX = 50
+        CLOCK_BOUNDARY_OFFSET = 2
+        width = (CLOCK_BOUNDARY_OFFSET + CLOCK_SIZE_PX)*8
+        height = (CLOCK_BOUNDARY_OFFSET + CLOCK_SIZE_PX) * 3
+        rect = QRectF(0, 0, width, height)
+        scene = FourDigitScene(rect, mode=2, clock_size_px=CLOCK_SIZE_PX, clock_boundary_offset=CLOCK_BOUNDARY_OFFSET)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(scene.advance)
+        self.timer.start(32)
+        self.view = QGraphicsView(scene)
+        self.view.setViewportUpdateMode(QGraphicsView.FullViewportUpdate)
+        self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.view.setFrameShape(QGraphicsView.NoFrame)
+        self.view.setStyleSheet("background: transparent; border: none;")
+        self.view.setAttribute(Qt.WA_TranslucentBackground)
+        self.view.setAttribute(Qt.WA_TransparentForMouseEvents)
 
-        layout = QHBoxLayout()
-        time = QTime.currentTime()
-        self.H1 = Digit(value=time.hour() // 10, parent=self)
-        self.H2 = Digit(value=time.hour() % 10, parent=self)
-        self.M1 = Digit(value=time.second() // 10, parent=self)
-        self.M2 = Digit(value=time.second() % 10, parent=self)
-        layout.addWidget(self.H1)
-        layout.addWidget(self.H2)
-        layout.addWidget(self.M1)
-        layout.addWidget(self.M2)
-        layout.setSpacing(0)
-        layout.setContentsMargins(0,0,0,0)
-        self.setLayout(layout)
-
-    def update(self):
-        time = QTime.currentTime()
-        self.H1.value=time.hour() // 10
-        self.H2.value=time.hour() % 10
-        self.M1.value=time.minute() // 10
-        self.M2.value=time.minute() % 10
-        print("Time: ", time)
-        super().update()
+        self.view.setContentsMargins(0, 0, 0, 0)
+        self.layout.addWidget(self.view)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(self.layout)
+        self.view.setFrameRect(rect.toRect())
 
     def mousePressEvent(self, event):
         ''' When press, maybe animation or etc'''
         if event.button() == Qt.LeftButton:
-            self.mpos = event.globalPos() - self.pos()    # 记录坐标
+            self.mpos = event.globalPos() - self.pos()
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
@@ -67,30 +119,30 @@ class MainWindow(QWidget):
 
     def mouseReleaseEvent(self, event):
         '''when release the time goes back to the true time.'''
+        print("Mouse release event")
         if event.button() == Qt.LeftButton:
             print("going back")
         super().mouseReleaseEvent(event)
 
-    def enterEvent(self, event):
-        '''Any event, then add dynamic or etc'''
-        self.update()
-        super().enterEvent(event)
+    # def enterEvent(self, event):
+    #     '''Any event, then add dynamic or etc'''
+    #     self.update()
+    #     super().enterEvent(event)
 
-    def leaveEvent(self, event):
-        self.update()
-        super().leaveEvent(event)
+    # def leaveEvent(self, event):
+    #     self.update()
+    #     super().leaveEvent(event)
 
-    def mouseDoubleClickEvent(self, event):
-        if event.button() == Qt.RightButton:
-            self.close()
-            print("Closed. Add necessary things")
-            QApplication.instance().quit()
-        super().mouseDoubleClickEvent(event)
+    # def mouseDoubleClickEvent(self, event):
+    #     if event.button() == Qt.RightButton:
+    #         self.close()
+    #         print("Closed. Add necessary things")
+    #         QApplication.instance().quit()
+    #     super().mouseDoubleClickEvent(event)
 
 if __name__ == '__main__':
     print("Bismillah")
     app = QApplication(sys.argv)
     widget = MainWindow()
     widget.show()
-    widget.resize(550, 300)
     sys.exit(app.exec_())

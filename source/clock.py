@@ -145,7 +145,7 @@ class GraphicsClock(QGraphicsItem):
             hours_x, hours_y
         )
     
-    def advance(self, hour=None, minute=None):
+    def advance(self, hour=None, minute=None, strick=True):
         # if we tell hour and minute --> Immideately set to that hour and minure
         # we can tell just to increment the existsing clock
 
@@ -161,12 +161,15 @@ class GraphicsClock(QGraphicsItem):
             #------------------------------
         elif self.mode == 2:
             #------------------------------
-            assert minute != None
-            assert hour != None
-
-            self.second_degree = 0  # 360 / 60
-            self.minute_degree = minute * 6  #+ second * 0.1  # 6° per minute + smooth
-            self.hour_degree = (hour % 12) * 30  #+ minute * 0.5  # 30° per hour + smooth
+            # assert minute != None
+            # assert hour != None
+            if minute != None and hour != None:
+                self.second_degree = 0  # 360 / 60
+                if strick:
+                    self.minute_degree = minute * 6  #+ second * 0.1  # 6° per minute + smooth
+                    self.hour_degree = (hour % 12) * 30  #+ minute * 0.5  # 30° per hour + smooth
+                else: # not strick!
+                    self.hour_degree = (hour % 12) * 30 + minute * 0.5
             #------------------------------
             # speed how to interpretate the speed? the move big movement is bigger speed, small movement is small speed
             # self.minute_degree --> current

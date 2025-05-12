@@ -25,6 +25,12 @@ class FourDigitScene(QGraphicsScene):
         super().__init__()
         self.setSceneRect(rect)
         self.call_step = 0 
+        self.hour_hand = 0
+        self.minute_hand = 0
+        self.h1_face_digit = 0
+        self.h2_face_digit = 0
+        self.m1_face_digit = 0
+        self.m2_face_digit = 0
  
         clock_x_boundary = clock_size_px + clock_boundary_offset
         clock_y_boundary = clock_size_px + clock_boundary_offset
@@ -82,30 +88,58 @@ class FourDigitScene(QGraphicsScene):
         second = now.second
         if second == 00 or self.call_step == 3750:
             self.call_step = 0 
+            self.hour_hand = 0
+            self.minute_hand = 0
             print("self.call_step is set 0")
+            return
         
         # Event 1 ##########
         # display for 240 ms --> 15 steps
         if 0 <= self.call_step < 15:
             # here draw once and no drawing!
-            h1_face_digit = int(str(now.hour)[0]) if len(str(now.hour)) > 1 else 0
-            h2_face_digit = int(str(now.hour)[-1])
-            m1_face_digit = int(str(now.minute)[0]) if len(str(now.minute)) > 1 else 0
-            m2_face_digit = int(str(now.minute)[-1])
-            for clocks, face_digit in zip(self.clocks, [h1_face_digit, h2_face_digit, m1_face_digit, m2_face_digit]):
+            self.h1_face_digit = int(str(now.hour)[0]) if len(str(now.hour)) > 1 else 0
+            self.h2_face_digit = int(str(now.hour)[-1])
+            self.m1_face_digit = int(str(now.minute)[0]) if len(str(now.minute)) > 1 else 0
+            self.m2_face_digit = int(str(now.minute)[-1])
+            for clocks, face_digit in zip(self.clocks, [self.h1_face_digit, self.h2_face_digit, self.m1_face_digit, self.m2_face_digit]):
                 for clock, (hour, minute) in zip(clocks, DIGIT_MAPPING_DICT[face_digit]):
                     clock.advance(hour, minute)
         
-        elif 15 <= self.call_step < 100:
+        elif 15 <= self.call_step < 1015:
+            print("moving from Event 1 to Event 2")
             # moving from Event 1 to Event 2
             # change the clock mode?
-            
             for digit_clock in self.clocks:
                 for clock in digit_clock:
-                    # [upper left, upper right, middle left, middle right, bottom left, bottom right]
-                    clock.advance() # let each one to move in such way 
-        
+                    clock.minute_degree += 1
+                    clock.hour_degree += 1
+                    clock.advance()
 
 
+            # for digit_clock in self.clocks:
+            #     for clock in digit_clock:
+            #         self.hour_hand += 1
+            #         self.minute_hand += 0.1
+            #         if self.hour_hand == 12: self.hour_hand = 0
+            #         if self.minute_hand == 60: self.minute_hand = 0
+            #         # [upper left, upper right, middle left, middle right, bottom left, bottom right]
+            #         clock.advance(self.hour_hand, self.minute_hand, strick=False) # let each one to move in such way 
+
+        elif 1015 <= self.call_step < 2015:
+            # moving from Event 1 to Event 2
+            # change the clock mode?
+            print("moving from Event 2 to Event 1")
+
+            for digit_clock in self.clocks:
+                for clock in digit_clock:
+                    clock.minute_degree -= 1
+                    clock.hour_degree -= 1
+                    clock.advance()
+                    # self.hour_hand -= 1
+                    # self.minute_hand -= 0.1
+                    # if self.hour_hand == 12: self.hour_hand = 0
+                    # if self.minute_hand == 60: self.minute_hand = 0
+                    # # [upper left, upper right, middle left, middle right, bottom left, bottom right]
+                    # clock.advance(self.hour_hand, self.minute_hand, strick=False) # let each one to move in such way 
         
         self.call_step += 1

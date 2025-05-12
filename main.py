@@ -5,68 +5,12 @@
 
 import os # to overcome relative path issues
 import sys
-import datetime
-from typing import List
 
-
-from PyQt5.QtWidgets import QWidget, QApplication, QHBoxLayout, QGraphicsView, QGraphicsScene
+from PyQt5.QtWidgets import QWidget, QApplication, QHBoxLayout, QGraphicsView
 from PyQt5.QtCore import Qt, QTimer, QTime, QRectF
-from source.clock import GraphicsClock
-from source.utils import DIGIT_MAPPING_DICT
+from source.four_digit_scene import FourDigitScene
 
 basedir = os.path.dirname(__file__)
-
-
-class FourDigitScene(QGraphicsScene):
-    def __init__(self, rect:QRectF, mode=2, clock_size_px=50, clock_boundary_offset=2):
-        super().__init__()
-        self.setSceneRect(rect)
-        clock_x_boundary = clock_size_px + clock_boundary_offset
-        clock_y_boundary = clock_size_px + clock_boundary_offset
-
-        ###### H1 DIGIT ########
-        def __make_digit(digit_face_num:int, global_ax, global_ay) -> List:
-            clocks = []
-            val = DIGIT_MAPPING_DICT[digit_face_num]
-            for idx, (hour, minute) in enumerate(val):
-                # 0,1,2,3,4,5,6
-                ax1 = global_ax + idx % 2 * clock_x_boundary
-                ay = global_ay + idx // 2 * clock_y_boundary 
-                clock_item = GraphicsClock(hour, minute, mode=mode, ax=ax1, ay=ay, size=clock_size_px)
-                self.addItem(clock_item)
-                clocks.append(clock_item)
-            return clocks
-        ##########################
-        self.H1_clocks = __make_digit(0, 0, 0)
-        self.H2_clocks = __make_digit(1, clock_x_boundary*2, 0)
-        self.M1_clocks = __make_digit(1, clock_x_boundary*4, 0)
-        self.M2_clocks = __make_digit(1, clock_x_boundary*6, 0)
-
-        self.clocks = [
-            self.H1_clocks, 
-            self.H2_clocks, self.M1_clocks, self.M2_clocks,
-            ]
-        
-        # helpers
-        # text_item = self.addText("0, 0")
-        # text_item.setPos(0, 0)
-
-        # text_item = self.addText("400, 400")
-        # text_item.setPos(400, 400)
-        
-    def advance(self):
-        now = datetime.datetime.now()
-        # debug for now MM:SS, not HH:MM
-        # h1_face_digit = int(str(now.hour)[0]) if len(str(now.hour)) > 1 else 0
-        # h2_face_digit = int(str(now.hour)[-1])
-        h1_face_digit = int(str(now.minute)[0]) if len(str(now.minute)) > 1 else 0
-        h2_face_digit = int(str(now.minute)[-1])
-        m1_face_digit = int(str(now.second)[0]) if len(str(now.second)) > 1 else 0
-        m2_face_digit = int(str(now.second)[-1])
-
-        for clocks, face_digit in zip(self.clocks, [h1_face_digit, h2_face_digit, m1_face_digit, m2_face_digit]):
-            for clock, (hour, minute) in zip(clocks, DIGIT_MAPPING_DICT[face_digit]):
-                clock.advance(hour, minute)
 
 
  
@@ -89,7 +33,7 @@ class MainWindow(QWidget):
         scene = FourDigitScene(rect, mode=2, clock_size_px=CLOCK_SIZE_PX, clock_boundary_offset=CLOCK_BOUNDARY_OFFSET)
         self.timer = QTimer(self)
         self.timer.timeout.connect(scene.advance)
-        self.timer.start(32)
+        self.timer.start(16)
         self.view = QGraphicsView(scene)
         self.view.setViewportUpdateMode(QGraphicsView.FullViewportUpdate)
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -123,15 +67,6 @@ class MainWindow(QWidget):
         if event.button() == Qt.LeftButton:
             print("going back")
         super().mouseReleaseEvent(event)
-
-    # def enterEvent(self, event):
-    #     '''Any event, then add dynamic or etc'''
-    #     self.update()
-    #     super().enterEvent(event)
-
-    # def leaveEvent(self, event):
-    #     self.update()
-    #     super().leaveEvent(event)
 
     # def mouseDoubleClickEvent(self, event):
     #     if event.button() == Qt.RightButton:

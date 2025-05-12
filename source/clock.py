@@ -146,6 +146,9 @@ class GraphicsClock(QGraphicsItem):
         )
     
     def advance(self, hour=None, minute=None):
+        # if we tell hour and minute --> Immideately set to that hour and minure
+        # we can tell just to increment the existsing clock
+
         # update the drawings
         # update the hands of the clock
         #------------------------------
@@ -165,6 +168,10 @@ class GraphicsClock(QGraphicsItem):
             self.minute_degree = minute * 6  #+ second * 0.1  # 6° per minute + smooth
             self.hour_degree = (hour % 12) * 30  #+ minute * 0.5  # 30° per hour + smooth
             #------------------------------
+            # speed how to interpretate the speed? the move big movement is bigger speed, small movement is small speed
+            # self.minute_degree --> current
+            # future_minute_degree --> ?
+            # so speed then can be measured
         self.update()
 
 

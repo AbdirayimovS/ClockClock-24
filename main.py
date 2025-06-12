@@ -1,8 +1,5 @@
 '''Clock'''
 
-# https://www.pythonguis.com/tutorials/packaging-pyqt5-applications-pyinstaller-macos-dmg/
-# how to automate it?
-
 import os # to overcome relative path issues
 import sys
 
@@ -11,7 +8,6 @@ from PyQt5.QtCore import Qt, QTimer, QTime, QRectF
 from source.four_digit_scene import FourDigitScene
 
 basedir = os.path.dirname(__file__)
-
 
  
 class MainWindow(QWidget):
@@ -68,12 +64,6 @@ class MainWindow(QWidget):
             print("going back")
         super().mouseReleaseEvent(event)
 
-    # def mouseDoubleClickEvent(self, event):
-    #     if event.button() == Qt.RightButton:
-    #         self.close()
-    #         print("Closed. Add necessary things")
-    #         QApplication.instance().quit()
-    #     super().mouseDoubleClickEvent(event)
 
 if __name__ == '__main__':
     print("Bismillah")

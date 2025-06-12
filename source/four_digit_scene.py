@@ -141,5 +141,6 @@ class FourDigitScene(QGraphicsScene):
                     # if self.minute_hand == 60: self.minute_hand = 0
                     # # [upper left, upper right, middle left, middle right, bottom left, bottom right]
                     # clock.advance(self.hour_hand, self.minute_hand, strick=False) # let each one to move in such way 
-        
+        else:
+            print("resting...")
         self.call_step += 1
